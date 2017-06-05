@@ -1,0 +1,324 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Usage:
+    wordpress_import <input_file> <template_file> <xmlrpc_URL>
+    wordpress_import [options] <input_file> <template_file> <xmlrpc_URL>
+
+Options:
+    -h, --help                  Show this help screen.
+    -u, --user=<username>       Wordpress User
+    -p, --password=<password>   Wordpres Password
+    -v, --version               Print version
+
+Simple utility to auto accept Follow Requests on an Instagram account.
+
+"""
+from wordpress_xmlrpc import Client, WordPressPost
+from wordpress_xmlrpc.methods.posts import GetPosts, NewPost, EditPost
+from wordpress_xmlrpc.methods import media
+from wordpress_xmlrpc.methods import taxonomies
+from wordpress_xmlrpc.compat import xmlrpc_client
+from wordpress_xmlrpc import WordPressTerm
+import csv
+import re
+from tempfile import NamedTemporaryFile
+import shutil
+import signal
+import sys
+import urllib
+import os
+import random
+from docopt import docopt
+import sqlite3
+from requests import get
+from getpass import getpass
+
+memory_database = None
+data_file = None
+client = None
+categories = []
+terms = []
+
+def signal_handler(signal, frame):
+    print('Syncing CSV file.')
+    update_csv_for_exit()
+    print('Exiting!')
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, signal_handler)
+
+
+def prompt_for_username():
+    return raw_input('Wordpress Username: ')
+
+
+def prompt_for_password():
+    return getpass('Wordpress Password: ')
+
+
+def update_csv_for_exit():
+    global memory_database, data_file
+    tempfile = NamedTemporaryFile(delete = False)
+    print('Updating %s' % (data_file))
+    if memory_database:
+        cursor = memory_database.cursor()
+        cursor.execute('SELECT * FROM posts')
+        with tempfile as tmp:
+            headers = list(map(lambda x: x[0], cursor.description))
+            writer = csv.DictWriter(tempfile, fieldnames=headers)
+            writer.writeheader()
+            for row in cursor.fetchall():
+                csv_row = {'Title': row[0], 'URL': row[1], 'Category': row[2],
+                'Brand': row[3], 'Thumbnail': row[4], 'Images': row[5], 'PostID': row[6]
+                }
+                writer.writerow(csv_row)
+        shutil.move(tempfile.name, data_file)
+        
+
+
+def process_title(data, line):
+    line = re.sub(r'\[TITLE\]', data[0], line)
+    return line
+
+
+def process_link(data, line):
+    line = re.sub(r'\[LINK\]', '<a href="%s">Link</a>' % (data[1]), line)
+    return line
+
+
+def process_category(data, line):
+    line = re.sub(r'\[CATEGORY\]', data[2], line)
+    return line
+
+
+def process_random_numbers(line):
+    pattern = r'\[RANDOM NUMBER BETWEEN (\d+) AND (\d+)\]'
+    matches = re.match('.*%s.*' % (pattern), line)
+    if matches:
+        from_range = int(matches.group(1))
+        to_range = int(matches.group(2))
+        rand_num = str(random.randint(from_range, to_range))
+        line = re.sub(pattern, rand_num, line)
+    return line
+
+
+def process_synonyms(line):
+    if(line):
+        synonyms = re.findall(r'(\{.*?\})', line)
+        for synonym in synonyms:
+            synonym_list = re.sub(r'[\{\}]', '', synonym).split('|')
+            chosen_synonym = choose_random(synonym_list)
+            line = re.sub(re.escape(synonym), chosen_synonym, line)
+    return line
+
+
+def process_template(data, template, post):
+    lines = template.split('\n')
+    result = ''
+    for line in lines:
+        line = process_title(data, line)
+        line = process_category(data, line)
+        line = process_link(data, line)
+        line = process_random_numbers(line)
+        line = process_synonyms(line)
+        result += line + '\n'
+    post.content = result
+    return post
+
+
+def generate_post_title(data, template, post):
+    # Chop off the first instance of title from template
+    title = data[0]
+    title_template = template.split('\n')[0]
+    title_word_count = len(title_template.split(' ')) - 1
+    title = ' '.join(title.split(' ')[0:6 - title_word_count])
+    title = re.sub(r'\[TITLE\]', title, title_template)
+    content = '\n'.join(template.split('\n')[1:])
+    post.title = title
+    post.content = content
+    return post
+
+
+def process_images(data, post):
+    thumbnail_url = data[4]
+    image2_url = data[5]
+    # Download Images
+    thumbnail_image = download_image(thumbnail_url)
+    image2 = download_image(image2_url)
+    # Upload Images
+    thumbnail_id = upload_image(thumbnail_image, '%s_thumbnail.jpg' % (post.id))
+    image2_id = upload_image(image2, '%s.jpg' % (post.id))
+    if thumbnail_id:
+        thumbnail_id = '%s_thumbnail.jpg' % (post.id)
+        post.thumbnail = thumbnail_id
+        post.content = re.sub(r'\[PHOTO 1\]', '<img class="alignnone size-full wp-image-%s" src="http://localhost:8000/wp-content/uploads/2017/06/%s" alt="" />' % (thumbnail_id, thumbnail_id), post.content)
+    else:
+        post.content = re.sub(r'\[PHOTO 1\]', '')
+    if image2_id:
+        image2_id = '%s.jpg' % (post.id)
+        post.content = re.sub(r'\[PHOTO 2\]', '<img class="alignnone size-full wp-image-%s" src="http://localhost:8000/wp-content/uploads/2017/06/%s" alt=""  />' % (image2_id, image2_id), post.content)
+    else:
+        post.content = re.sub(r'\[PHOTO 2\]', '')
+    return post
+
+
+def generate_post(data, template):
+    global client
+    # Generate post and title
+    post = WordPressPost()
+    post = generate_post_title(data, template, post)
+    print('Title: %s' % (post.title))
+    post = process_template(data, template, post)
+    post.post_status = 'publish'
+    category = data[2]
+    for term in terms:
+        if category == term.name:
+            post.terms = (term)
+    # post.terms_names ={
+    #     'category': [data[2]]
+    # }
+    post.id = client.call(NewPost(post))
+    # Download and attach images
+    post = process_images(data, post)
+    client.call(EditPost(post.id, post))
+    print('Posted with id of: %s' % (post.id))
+    return post
+
+
+def choose_random(input_list):
+    random_range = len(input_list) - 1
+    rand_num = random.randint(0, random_range)
+    return input_list[rand_num]
+
+
+def download_image(url):
+    image_file = NamedTemporaryFile(delete = False)
+    try:
+        with image_file as image:
+            response = get(url)
+            image.write(response.content)
+    except Exception as e:
+        print('Error Downloading image: %s (%s)' % (url, e))
+    return image_file
+
+
+def upload_image(image_file, file_name):
+    data = {'name': '%s' % (file_name), 'type': 'image/jpeg'}
+    try:
+        with open(image_file.name, 'rb') as image:
+            data['bits'] = xmlrpc_client.Binary(image.read())
+        response = client.call(media.UploadFile(data))
+        image_id = response['id']
+        return image_id
+    except Exception as e:
+        print('Error uploading image: %s' % (e))
+        return None
+    
+
+def start_posting(db, template_file):
+    try:
+        template = open(template_file, 'r').read()
+    except Exception as e:
+        print('Error reading template file: %s'  % (e))
+        sys.exit(1)
+    cursor = db.cursor()
+    cursor.execute('SELECT * FROM posts WHERE PostID is ""')
+    for row in cursor.fetchall():
+        post = generate_post(row, template)
+        cursor.execute('''UPDATE posts SET PostID = ? WHERE LocalID =?''', (post.id, row[7]))
+    
+
+def load_data(data_file, db):
+    global categories
+    with open(data_file, 'rU') as data:
+        reader = csv.DictReader(data, dialect='excel')
+        local_id = 1
+        for row in reader:
+            title = row['Title']
+            url = row['URL']
+            category = row['Category']
+            brand = row['Brand']
+            thumbnail = row['Thumbnail']
+            image = row['Images']
+            if not 'PostID' in row.keys():
+                post_id = None
+            else:
+                post_id = row['PostID']
+            if category not in categories:
+                categories.append(category)
+            db.execute("INSERT INTO posts VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (title, url, category, brand, thumbnail, image, post_id, local_id))
+            local_id += 1
+    cursor = db.cursor()
+    count = cursor.execute('SELECT COUNT(*) FROM posts').fetchone()[0]
+    print('Loaded %s records from %s' % (count, data_file))
+    return count
+
+
+def create_database():
+    global memory_database
+    try:
+        conn = sqlite3.connect(':memory:')
+        conn.text_factory = str
+    except Exception as e:
+        print('Error creating temporary database: %s' % (e))
+        sys.exit(1)
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE posts 
+        (Title text, URL text, Brand text, Category text, Images text, Thumbnail text, PostID text, LocalID text)''')
+    conn.commit()
+    memory_database = conn
+    return conn
+
+def create_categories():
+    global categories, terms
+    parent_cat = client.call(taxonomies.GetTerm('category', 3))
+    print('Categories')
+    print('--------------------------------------------------------------------------------')
+    term_names = [term.name for term in terms]
+    for term in term_names:
+        print(term)
+    for category in categories:
+        category = re.sub(r'&','&amp;', category)
+        category = re.sub(r'\s+',' ', category)
+        category = category.decode('utf-8')
+        if category not in term_names:
+            child_cat = WordPressTerm()
+            child_cat.taxonomy = 'category'
+            child_cat.parent = parent_cat.id
+            child_cat.name = category
+            print('Creating Category: %s' % (category))
+            child_cat.id = client.call(taxonomies.NewTerm(child_cat))
+            terms.append(child_cat)
+    print('--------------------------------------------------------------------------------')
+    # print('Copy the above output to the bulkpress plugin to create the needed categories on your wordpress site.')
+    # raw_input('Press enter/return to continue with import.')
+
+
+
+def main(args=None):
+    global client, data_file, memory_database, terms
+    data_file = arguments['<input_file>']
+    template_file = arguments['<template_file>']
+    wordpress_url = arguments['<xmlrpc_URL>']
+    username = arguments['--user']
+    password = arguments['--password']
+    if not username:
+        username = prompt_for_username()
+    if not password:
+        password = prompt_for_password()
+    print('Using data file: %s' % (data_file))
+    print('Using template file: %s' % (template_file))
+    db = create_database()
+    record_count = load_data(data_file, db)
+    client = Client(wordpress_url, username, password)
+    terms = client.call(taxonomies.GetTerms('category'))
+    create_categories()
+    start_posting(db, template_file)
+    update_csv_for_exit()
+    
+if __name__ == '__main__':
+    arguments = docopt(__doc__, version='0.1.0')
+    main()
