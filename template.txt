@@ -6,9 +6,9 @@ Est-ce que tu {cherche|recherche} ou acheter un [TITLE] {par cher|à bas prix}?
 
 Si c'est le cas, tu es au bon endroit. Nous avons {chercher|rechercher} {partout sur le net|sur tout le net} pour trouver {l'endroit le moins cher|la boutique la moins cher|le meilleur prix}.
 
-{L'endroit le moins cher|La boutique la moins cher|Le meilleur prix} que nous avons trouvé est ici [LINK]
+{L'endroit le moins cher|La boutique la moins cher|Le meilleur prix} que nous avons trouvé est [LINK]
 
-Nous avons {aussi|également} fait une recherche pour voir si des gens ont testé le produit, et quel est leur avis sur celui-ci. Et nous avons eu de la chance. Nous avons trouvé X[RANDOM NUMBER BETWEEN 23 AND 80] personnes qui ont donné {leur avis|leurs commentaires} sur le produit sur le net, et en général les {commentaires|avis} sont {plutot|} positifs! C'est bon signe si vous pensez {faire cet achat|acheter}. Voici la note moyenne des X[same number from before] personnes que nous avons trouvé:
+Nous avons {aussi|également} fait une recherche pour voir si des gens ont testé le produit, et quel est leur avis sur celui-ci. Et nous avons eu de la chance. Nous avons trouvé X[RANDOM NUMBER BETWEEN 23 AND 80] personnes qui ont donné {leur avis|leurs commentaires} sur le produit sur le net, et en général les {commentaires|avis} sont {plutot|} positifs! C'est bon signe si vous pensez {faire cet achat|acheter}. Voici la note moyenne des X[LAST RANDOM NUMBER] personnes que nous avons trouvé:
 
 [quality bars randomly generated [RANDOM NUMBER BETWEEN 7 AND 10]]
 Est-ce que ça marche bien? X/10 [RANDOM NUMBER BETWEEN 7 AND 10]
@@ -25,6 +25,6 @@ Soutient technique [RANDOM NUMBER BETWEEN 7 AND 10]/10
 
 La marque du produit est [brand]. C'est une marque de {bonne réputation|de confiance} qui est en affaire depuis plusieurs années. Je n'aurais aucun problème à acheter de cette marque, surtout si c'est sur un site sécurisé comme Amazon.
 
-Dans la catégorie [CATEGORY], le produit est un des meilleurs vendeurs. C'est un très bon signe de sa qualité. Mais ca ne veut pas dire que tu ne devrais pas regarder les autres options. Pour voir les autres options dans cette catégorie, clique ici [LINK] et ensuite sur les produits recommendés.
+Dans la catégorie [CATEGORY], le produit est un des meilleurs vendeurs. C'est un très bon signe de sa qualité. Mais ca ne veut pas dire que tu ne devrais pas regarder les autres options. Pour voir les autres options dans cette catégorie, clique [LINK] et ensuite sur les produits recommendés.
 
-Si vous pensez faire un achat sur le net, il a des précautions a prendre. Il est très important de lire les avis sur le produit. Nous avons trouvé plusieurs avis ici [LINK]. Avant d'acheter, nous recommendons de lire le plus d'avis et de commentaires possible sur le produit, et de faire une comparaison de tout les meilleurs options dans la catégorie [CATEGORY].
+Si vous pensez faire un achat sur le net, il a des précautions a prendre. Il est très important de lire les avis sur le produit. Nous avons trouvé plusieurs avis [LINK]. Avant d'acheter, nous recommendons de lire le plus d'avis et de commentaires possible sur le produit, et de faire une comparaison de tout les meilleurs options dans la catégorie [CATEGORY].

@@ -39,6 +39,7 @@ data_file = None
 client = None
 categories = []
 terms = []
+last_rand = None
 
 def signal_handler(signal, frame):
     print('Syncing CSV file.')
@@ -84,7 +85,7 @@ def process_title(data, line):
 
 
 def process_link(data, line):
-    line = re.sub(r'\[LINK\]', '<a href="%s">Link</a>' % (data[1]), line)
+    line = re.sub(r'\[LINK\]', '<a href="%s">ici</a>' % (data[1]), line)
     return line
 
 
@@ -94,13 +95,16 @@ def process_category(data, line):
 
 
 def process_random_numbers(line):
+    global last_rand
     pattern = r'\[RANDOM NUMBER BETWEEN (\d+) AND (\d+)\]'
     matches = re.match('.*%s.*' % (pattern), line)
     if matches:
         from_range = int(matches.group(1))
         to_range = int(matches.group(2))
         rand_num = str(random.randint(from_range, to_range))
+        last_rand = rand_num
         line = re.sub(pattern, rand_num, line)
+    line = re.sub(r'\[LAST RANDOM NUMBER\]', str(last_rand), line)
     return line
 
 
@@ -173,12 +177,12 @@ def generate_post(data, template):
     post = process_template(data, template, post)
     post.post_status = 'publish'
     category = data[2]
+    category = re.sub(r'&','&amp;', category)
+    category = re.sub(r'\s+',' ', category)
+    category = category.decode('utf-8')
     for term in terms:
         if category == term.name:
-            post.terms = (term)
-    # post.terms_names ={
-    #     'category': [data[2]]
-    # }
+            post.terms = (term,)
     post.id = client.call(NewPost(post))
     # Download and attach images
     post = process_images(data, post)
@@ -211,6 +215,7 @@ def upload_image(image_file, file_name):
             data['bits'] = xmlrpc_client.Binary(image.read())
         response = client.call(media.UploadFile(data))
         image_id = response['id']
+        os.remove(image_file.name)
         return image_id
     except Exception as e:
         print('Error uploading image: %s' % (e))
@@ -224,7 +229,7 @@ def start_posting(db, template_file):
         print('Error reading template file: %s'  % (e))
         sys.exit(1)
     cursor = db.cursor()
-    cursor.execute('SELECT * FROM posts WHERE PostID is ""')
+    cursor.execute('SELECT * FROM posts WHERE PostID = "" OR PostID = null')
     for row in cursor.fetchall():
         post = generate_post(row, template)
         cursor.execute('''UPDATE posts SET PostID = ? WHERE LocalID =?''', (post.id, row[7]))
@@ -274,27 +279,19 @@ def create_database():
 
 def create_categories():
     global categories, terms
-    parent_cat = client.call(taxonomies.GetTerm('category', 3))
-    print('Categories')
-    print('--------------------------------------------------------------------------------')
+    parent_cat = client.call(taxonomies.GetTaxonomy('category'))
     term_names = [term.name for term in terms]
-    for term in term_names:
-        print(term)
     for category in categories:
         category = re.sub(r'&','&amp;', category)
         category = re.sub(r'\s+',' ', category)
         category = category.decode('utf-8')
         if category not in term_names:
-            child_cat = WordPressTerm()
-            child_cat.taxonomy = 'category'
-            child_cat.parent = parent_cat.id
-            child_cat.name = category
+            new_cat = WordPressTerm()
+            new_cat.taxonomy = 'category'
+            new_cat.name = category
             print('Creating Category: %s' % (category))
-            child_cat.id = client.call(taxonomies.NewTerm(child_cat))
-            terms.append(child_cat)
-    print('--------------------------------------------------------------------------------')
-    # print('Copy the above output to the bulkpress plugin to create the needed categories on your wordpress site.')
-    # raw_input('Press enter/return to continue with import.')
+            new_cat.id = client.call(taxonomies.NewTerm(new_cat))
+            terms.append(new_cat)
 
 
 
