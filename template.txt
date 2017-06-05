@@ -8,7 +8,7 @@ Si c'est le cas, tu es au bon endroit. Nous avons {chercher|rechercher} {partout
 
 {L'endroit le moins cher|La boutique la moins cher|Le meilleur prix} que nous avons trouvé est [LINK]
 
-Nous avons {aussi|également} fait une recherche pour voir si des gens ont testé le produit, et quel est leur avis sur celui-ci. Et nous avons eu de la chance. Nous avons trouvé X[RANDOM NUMBER BETWEEN 23 AND 80] personnes qui ont donné {leur avis|leurs commentaires} sur le produit sur le net, et en général les {commentaires|avis} sont {plutot|} positifs! C'est bon signe si vous pensez {faire cet achat|acheter}. Voici la note moyenne des X[LAST RANDOM NUMBER] personnes que nous avons trouvé:
+Nous avons {aussi|également} fait une recherche pour voir si des gens ont testé le produit, et quel est leur avis sur celui-ci. Et nous avons eu de la chance. Nous avons trouvé [RANDOM NUMBER BETWEEN 23 AND 80] personnes qui ont donné {leur avis|leurs commentaires} sur le produit sur le net, et en général les {commentaires|avis} sont {plutot|} positifs! C'est bon signe si vous pensez {faire cet achat|acheter}. Voici la note moyenne des [LAST RANDOM NUMBER] personnes que nous avons trouvé:
 
 [quality bars randomly generated [RANDOM NUMBER BETWEEN 7 AND 10]]
 Est-ce que ça marche bien? X/10 [RANDOM NUMBER BETWEEN 7 AND 10]

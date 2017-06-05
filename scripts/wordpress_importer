@@ -8,7 +8,7 @@ Usage:
 Options:
     -h, --help                  Show this help screen.
     -u, --user=<username>       Wordpress User
-    -p, --password=<password>   Wordpres Password
+    -p, --password=<password>   Wordpress Password
     -v, --version               Print version
 
 Simple utility to auto accept Follow Requests on an Instagram account.
