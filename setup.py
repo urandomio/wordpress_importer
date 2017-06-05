@@ -31,11 +31,6 @@ setup(
     ],
     package_dir={'wordpress_importer':
                  'wordpress_importer'},
-    entry_points={
-        'console_scripts': [
-            'wordpress_importer=wordpress_importer.cli:main'
-        ]
-    },
     include_package_data=True,
     install_requires=requirements,
     license="MIT license",
